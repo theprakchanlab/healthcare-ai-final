@@ -124,6 +124,9 @@ def search_disease_info(disease_name: str) -> str:
 # BUILD THE AGENT
 # ─────────────────────────────────────────
 def build_agent():
+    print("Loading patient memory...")
+    vector_store = build_vector_store()
+    print("Memory ready!")
 
     tools = [get_patient_history, book_appointment, search_disease_info]
 
