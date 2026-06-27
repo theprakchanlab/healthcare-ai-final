@@ -23,11 +23,9 @@ if api_key:
     print("Key prefix:", api_key[:10])
 else:
     print("No API key found")
-    
-# Build FAISS memory once when agent starts
-print("Loading patient memory...")
-vector_store = build_vector_store()
-print("Memory ready!")
+
+# Initialize vector_store as None globally so it can be safely populated later
+vector_store = None
 
 # ─────────────────────────────────────────
 # TOOL 1 — Get Patient History
@@ -39,6 +37,7 @@ def get_patient_history(patient_name: str) -> str:
     Input: patient name as a string.
     Example: get_patient_history("Ramesh Kumar")
     """
+    global vector_store
     pid, patient = find_patient(patient_name)
 
     if patient:
@@ -51,10 +50,11 @@ Patient Found:
 - History: {patient['history']}
         """
 
-    # If not found by name, search FAISS
-    result = search_patient_memory(vector_store, patient_name)
-    if result:
-        return f"Patient found via memory search:\n{result}"
+    # If not found by name, search FAISS (if vector store is initialized)
+    if vector_store:
+        result = search_patient_memory(vector_store, patient_name)
+        if result and "No matching patient found" not in result:
+            return f"Patient found via memory search:\n{result}"
 
     return f"No patient found with name: {patient_name}"
 
@@ -119,6 +119,9 @@ def search_disease_info(disease_name: str) -> str:
 # BUILD THE AGENT
 # ─────────────────────────────────────────
 def build_agent():
+    global vector_store
+    
+    # Safely build the vector database only when this function is explicitly invoked
     print("Loading patient memory...")
     vector_store = build_vector_store()
     print("Memory ready!")
@@ -162,7 +165,7 @@ Rules:
 
 
 # ─────────────────────────────────────────
-# TEST
+# TEST LOCALLY
 # ─────────────────────────────────────────
 if __name__ == "__main__":
     print("\n" + "="*50)
@@ -172,7 +175,7 @@ if __name__ == "__main__":
     agent = build_agent() 
 
     result = agent.invoke({
-        "input": "What are the symptoms of diabetes?"
+        "input": "What are the symptoms of kidney stones?"
     })
 
     print("\nFinal Answer:", result["output"])
