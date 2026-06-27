@@ -2,12 +2,16 @@
 # FAISS memory — stores patient records so AI can search them
 
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.schema import Document
 from patients import PATIENTS
+
+# Only use this specific Mac/Windows fix if running locally
+if not os.environ.get("STREAMLIT_RUNTIME_CHECK"):
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 load_dotenv()
 
@@ -37,10 +41,17 @@ def build_vector_store():
             )
         )
 
-    # Create embeddings using Gemini
     print("Creating OpenAI embeddings...")
+    
+    # DYNAMIC API KEY LOOKUP: Checks .env locally first, then Streamlit Secrets on cloud
+    api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+    
+    if not api_key:
+        raise ValueError("Critical Error: OPENAI_API_KEY could not be found!")
+
     embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small"
+        model="text-embedding-3-small",
+        api_key=api_key
     )
     print("Embeddings object created...")
 
@@ -48,7 +59,6 @@ def build_vector_store():
     vector_store = FAISS.from_documents(documents, embeddings)
     
     print("FAISS index created...")
-
     print(f"Memory built! {len(documents)} patient records stored.")
     return vector_store
 
