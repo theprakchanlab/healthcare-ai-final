@@ -28,5 +28,5 @@ if st.button("Submit"):
                 result = agent.invoke({"input": query})
                 st.success("Response")
                 st.write(result["output"])
-                except Exception as e:
+            except Exception as e:
                 st.error(str(e))
