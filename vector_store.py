@@ -43,24 +43,35 @@ def build_vector_store():
 
     print("Creating OpenAI embeddings...")
     
-    # DYNAMIC API KEY LOOKUP: Checks .env locally first, then Streamlit Secrets on cloud
-    api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+    # DYNAMIC API KEY LOOKUP: Safely look for the key
+    api_key = os.getenv("OPENAI_API_KEY")
     
     if not api_key:
-        raise ValueError("Critical Error: OPENAI_API_KEY could not be found!")
-
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        api_key=api_key
-    )
-    print("Embeddings object created...")
-
-    # Build FAISS index from documents
-    vector_store = FAISS.from_documents(documents, embeddings)
+        try:
+            api_key = st.secrets["OPENAI_API_KEY"]
+        except Exception:
+            api_key = None
     
-    print("FAISS index created...")
-    print(f"Memory built! {len(documents)} patient records stored.")
-    return vector_store
+    if not api_key:
+        print("🛑 ERROR: OPENAI_API_KEY not found in environment or st.secrets")
+        return None
+
+    try:
+        embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=api_key
+        )
+        print("Embeddings object created...")
+
+        # Build FAISS index from documents
+        vector_store = FAISS.from_documents(documents, embeddings)
+        
+        print("FAISS index created...")
+        print(f"Memory built! {len(documents)} patient records stored.")
+        return vector_store
+    except Exception as e:
+        print(f"🛑 Error building FAISS index: {str(e)}")
+        return None
 
 
 def search_patient_memory(vector_store, query):
@@ -68,6 +79,9 @@ def search_patient_memory(vector_store, query):
     Search for a patient using natural language
     Example: search_patient_memory(store, "kidney disease patient")
     """
+    if not vector_store:
+        return "Memory storage uninitialized due to configuration error."
+        
     results = vector_store.similarity_search(query, k=1)
     if results:
         return results[0].page_content
@@ -78,8 +92,10 @@ def search_patient_memory(vector_store, query):
 if __name__ == "__main__":
     store = build_vector_store()
 
-    print("\n--- Testing search ---")
-    result = search_patient_memory(store, "kidney disease patient")
-    print("Search result:", result)
-
-    print("\n--- Day 2 complete! FAISS memory is working ---")
+    if store:
+        print("\n--- Testing search ---")
+        result = search_patient_memory(store, "kidney disease patient")
+        print("Search result:", result)
+        print("\n--- Day 2 complete! FAISS memory is working ---")
+    else:
+        print("\n--- Build failed ---")
